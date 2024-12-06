@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'imap' => [
+        'path' => env('IMAP_PATH'),
+        'email' => env('IMAP_EMAIL'),
+        'password' => env('IMAP_PASS'),
+    ]
+
 ];
