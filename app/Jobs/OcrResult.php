@@ -2,18 +2,17 @@
 
 namespace App\Jobs;
 
-use App\Enums\OcrDocumentStatus;
 use App\Models\OcrDocument;
 use App\Services\Ocr;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Throwable;
 
-class OcrJob implements ShouldQueue, ShouldBeUnique
+class OcrResult implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -24,7 +23,7 @@ class OcrJob implements ShouldQueue, ShouldBeUnique
     public function handle(): void
     {
         try {
-            Ocr::process($this->document);
+            Ocr::processResult($this->document);
         } catch (Throwable $e) {
             // obsługa bledow, powiadomienie mailowe, zapisanie loga
         }
@@ -37,6 +36,6 @@ class OcrJob implements ShouldQueue, ShouldBeUnique
 
     public function uniqueId(): string
     {
-        return $this->document->id;
+        return $this->document->aws_job_id;
     }
 }

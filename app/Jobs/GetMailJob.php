@@ -18,11 +18,9 @@ class GetMailJob implements ShouldQueue
 
     public function handle(Imap $imap): void
     {
-        if (settings()->get('get-mail-auto')) {
-            $imap->processEmails();
+        $imap->processEmails();
 
-            JobLog::create(['job' => JobName::GET_MAIL, 'success' => true]);
-        }
+        JobLog::create(['job' => JobName::GET_MAIL, 'success' => true]);
     }
 
     public function failed(Throwable $e)

@@ -13,8 +13,9 @@ return new class extends Migration
             $table->id();
             $table->integer('mail_id');
             $table->string('mail_subject');
-            $table->string('document');
+            $table->string('file');
             $table->enum('status', array_column(OcrDocumentStatus::cases(), 'value'))->default(OcrDocumentStatus::NEW);
+            $table->string('aws_job_id')->nullable()->default(null);
             $table->timestamps();
         });
     }

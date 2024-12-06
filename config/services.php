@@ -39,6 +39,13 @@ return [
         'path' => env('IMAP_PATH'),
         'email' => env('IMAP_EMAIL'),
         'password' => env('IMAP_PASS'),
+    ],
+
+    'aws' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION'),
+        'bucket' => env('AWS_BUCKET'),
     ]
 
 ];

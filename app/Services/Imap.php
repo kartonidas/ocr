@@ -42,14 +42,14 @@ class Imap
                     foreach ($attachments as $attachment) {
                         if ($attachment->mimeType == 'application/pdf') {
 
-                            $document = $this->storeInvoice($mailId, $attachment);
+                            $file = $this->storeInvoice($mailId, $attachment);
 
 //                            $this->imap->moveMail($mailId, 'ocr');
 
                             $ocrDocument = OcrDocument::create([
                                 'mail_id' => $mailId,
                                 'mail_subject' => $mail->subject,
-                                'document' => $document
+                                'file' => $file
                             ]);
 
                             OcrJob::dispatch($ocrDocument);
@@ -69,8 +69,8 @@ class Imap
             Storage::makeDirectory($path);
         }
 
-        $invoiceFileName = $mailId . '-' . time() . '.pdf';
-        Storage::put($path . '/' . $invoiceFileName, $attachment->getContents());
+        $invoiceFileName = $path . '/' . $mailId . '-' . time() . '.pdf';
+        Storage::put($invoiceFileName, $attachment->getContents());
 
         return $invoiceFileName;
     }
