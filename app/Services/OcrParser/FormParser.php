@@ -8,12 +8,12 @@ class FormParser extends OcrParserAbstract
     {
         $kvMap = self::getKvMap($ocrResponse);
 
-        return self::getKvRelationship($kvMap['key'], $kvMap['value'], $kvMap['block']);
+        return self::getKvRelationship($kvMap['key'], $kvMap['value'], $kvMap['block'], $kvMap['scores']);
     }
 
     private static function getKvMap($ocrResponse): array
     {
-        $keyMap = $valueMap = $blockMap = [];
+        $keyMap = $valueMap = $blockMap = $scores = [];
 
         foreach ($ocrResponse['Blocks'] as $block) {
             $blockId = $block['Id'];
@@ -25,6 +25,7 @@ class FormParser extends OcrParserAbstract
                 else {
                     $valueMap[$blockId] = $block;
                 }
+                $scores[$blockId] = $block['Confidence'];
             }
         }
 
@@ -32,12 +33,13 @@ class FormParser extends OcrParserAbstract
             'key' => $keyMap,
             'value' => $valueMap,
             'block' => $blockMap,
+            'scores' => $scores,
         ];
     }
 
-    private static function getKvRelationship($keyMap, $valueMap, $blockMap): array
+    private static function getKvRelationship($keyMap, $valueMap, $blockMap, $scoresMap): array
     {
-        $kvs = [];
+        $kvs = $scores = [];
 
         foreach ($keyMap as $keyBlock) {
             $valueBlock = self::findValueBlock($keyBlock, $valueMap);
@@ -46,9 +48,13 @@ class FormParser extends OcrParserAbstract
             $val = self::getText($valueBlock, $blockMap);
 
             $kvs[$key][] = $val;
+            $scores[$key][] = $valueBlock['Confidence'];
         }
 
-        return $kvs;
+        return [
+            'results' => $kvs,
+            'scores' => $scores,
+        ];
     }
 
     private static function findValueBlock($keyBlock, $valueMap): array

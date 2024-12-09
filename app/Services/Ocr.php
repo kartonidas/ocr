@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OcrDocumentStatus;
+use App\Enums\OcrDocumentType;
 use App\Jobs\OcrResult;
 use App\Models\OcrDocument;
 use Aws\S3\S3Client;
@@ -78,12 +79,25 @@ class Ocr
         if ($response['JobStatus'] === 'IN_PROGRESS') {
             OcrResult::dispatch($document)->delay(now()->addSeconds(self::OCR_RESULT_DELAY));
         } else {
-            $tables = OcrParser::getTables($response);
             $forms = OcrParser::getForms($response);
+            $document->saveTexts(OcrDocumentType::FORMS, $forms['results'] ?? [], $forms['scores'] ?? []);
+
+            $tables = OcrParser::getTables($response);
+
+            if (! empty($tables)) {
+                foreach ($tables as $table) {
+                    $document->saveTexts(OcrDocumentType::TABLES, $table['rows'], $table['scores']);
+                }
+            }
 
             // Eksport do IdoSell
 
-            // Usuwanie pliku z S3 (?)
+
+            $client = self::getS3Client();
+            $client->deleteObject([
+                'Bucket' => config('services.aws.bucket'),
+                'Key' => $document->file,
+            ]);
 
             $document->status = OcrDocumentStatus::COMPLETED;
             $document->save();
@@ -122,6 +136,38 @@ class Ocr
     {
         $client = self::getTextractClient();
 
-        return $client->getDocumentAnalysis(['JobId' => $jobId]);
+        return self::getJobResults($client, $jobId);
+    }
+
+    private static function getJobResults($client, string $jobId) {
+        $paginationToken = null;
+        $finished = false;
+        $allResults = [];
+
+        while (!$finished) {
+            $params = [
+                'JobId' => $jobId
+            ];
+
+            if ($paginationToken) {
+                $params['NextToken'] = $paginationToken;
+            }
+
+            $response = $client->getDocumentAnalysis($params);
+
+            if (empty($allResults)) {
+                $allResults = $response;
+            } else {
+                $allResults['Blocks'] = array_merge($allResults['Blocks'], $response['Blocks']);
+            }
+
+            if (isset($response['NextToken'])) {
+                $paginationToken = $response['NextToken'];
+            } else {
+                $finished = true;
+            }
+        }
+
+        return $allResults;
     }
 }

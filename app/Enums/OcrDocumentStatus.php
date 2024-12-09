@@ -9,7 +9,7 @@ enum OcrDocumentStatus: string
     case ERROR = 'error';
     case COMPLETED = 'completed';
 
-    public function labels(): array {
+    public function label(): string {
         return match ($this) {
             self::NEW => __('Oczekuje'),
             self::PENDING => __('Przetwarzanie'),
