@@ -22,6 +22,6 @@ abstract class OcrParserAbstract
             }
         }
 
-        return $text;
+        return trim($text);
     }
 }

@@ -46,6 +46,11 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION'),
         'bucket' => env('AWS_BUCKET'),
+    ],
+
+    'idosell' => [
+        'domain' => env('IDOSELL_DOMAIN'),
+        'key' => env('IDOSELL_API_KEY'),
     ]
 
 ];

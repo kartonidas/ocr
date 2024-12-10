@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OcrDocumentStatus;
 use App\Enums\OcrDocumentType;
+use App\Exceptions\OcrParseException;
 use App\Jobs\OcrResult;
 use App\Models\OcrDocument;
 use Aws\S3\S3Client;
@@ -55,8 +56,7 @@ class Ocr
 
         $ocrJobId = self::runAnalyzeDocument($document->file);
 
-        if ($ocrJobId)
-        {
+        if ($ocrJobId) {
             $document->aws_job_id = $ocrJobId;
             $document->save();
 
@@ -90,17 +90,21 @@ class Ocr
                 }
             }
 
-            // Eksport do IdoSell
-
-
             $client = self::getS3Client();
             $client->deleteObject([
                 'Bucket' => config('services.aws.bucket'),
                 'Key' => $document->file,
             ]);
 
-            $document->status = OcrDocumentStatus::COMPLETED;
-            $document->save();
+            try {
+                $luxottica = new Luxottica($document);
+                $luxottica->createDocument();
+
+                $document->status = OcrDocumentStatus::COMPLETED;
+                $document->save();
+            } catch (OcrParseException $e) {
+                // TODO: Zapisanie błędu
+            }
         }
     }
 
