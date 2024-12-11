@@ -6,74 +6,70 @@ use Illuminate\Support\Facades\Http;
 
 class Idosell
 {
-    public static function createStockDocument($params)
+    protected static function post(string $uri, array $body = []): object
     {
-        $response = Http::withHeaders(self::getHeaders())->
-            post(self::getEndpoint('wms/stocksdocuments/documents'), [
-                'params' => $params,
-            ]);
+        $url = 'https://' . config('services.idosell.domain') . '/api/admin/v3/' . $uri;
 
-        self::checkError($response);
+        $req = Http::withHeaders(self::headers())->post($url, $body);
 
-        return $response->json();
+        $res = json_decode($req->body());
+
+        if (empty($res)) {
+            $res = (object) [];
+        }
+
+        return $res;
+    }
+
+    protected static function put(string $uri, array $body = []): object
+    {
+        $url = 'https://' . config('services.idosell.domain') . '/api/admin/v3/' . $uri;
+
+        $req = Http::withHeaders(self::headers())->put($url, $body);
+
+        $res = json_decode($req->body());
+
+        if (empty($res)) {
+            $res = (object) [];
+        }
+
+        return $res;
+    }
+
+    public static function createStockDocument($request)
+    {
+        return self::post('wms/stocksdocuments/documents', ['params' => $request])->id;
     }
 
     public static function addProductsToStockDocument(int $documentId, array $products, string $type)
     {
-        $params['type'] = $type;
-        $params['id'] = $documentId;
+        $request['params']['type'] = $type;
+        $request['params']['id'] = $documentId;
 
         foreach ($products as $product) {
-            $params['products'][]  = [
+            $request['params']['products'][]  = [
                 'product' => $product['product_id'],
                 'size' => 'uniw',
-                'quantity' => $product['quantity']
+                'quantity' => $product['quantity'],
+                'productPurchasePrice' => $product['price'],
             ];
         }
 
-        $response = Http::withHeaders(self::getHeaders())->
-            put(self::getEndpoint('wms/stocksdocuments/products'), [
-                'params' => $params,
-            ]);
+        self::put('wms/stocksdocuments/products', $request);
     }
 
     public static function getProductByEan(string $ean)
     {
-        $params = [];
+        $request['params']['returnElements'] = ['sizes'];
+        $request['params']['containsCodePart'] = $ean;
 
-        $response = Http::withHeaders(self::getHeaders())->
-            put(self::getEndpoint('products/products/get'), [
-                'params' => $params,
-            ]);
+        return self::post('products/products/get', $request);
     }
 
-    private static function getHeaders(): array
+    private static function headers(): array
     {
         return [
             'X-API-KEY' => config('services.idosell.key'),
-            'accept' => 'application/json',
-            'content-type' => 'application/json',
         ];
-    }
-
-    private static function getEndpoint(string $action)
-    {
-        return sprintf('https://%s/api/admin/v3/%s', config('services.idosell.domain'), $action);
-    }
-
-    private static function checkError(Response $response)
-    {
-        $msg = match ($response->status()) {
-            401 => __('Authorization error'),
-            403 => __('Access denied'),
-            404 => __('Not found'),
-            422 => __('Invalid data format'),
-            429 => __('Too many requests'),
-            500 => __('Internal server error'),
-            default => ''
-        };
-
-        if($msg)
-            throw new Exception($msg);
     }
 }

@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\MatchingRuleType;
 use App\Enums\OcrDocumentType;
 use App\Exceptions\OcrParseException;
+use App\Models\MatchingRule;
 use App\Models\OcrDocument;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -46,12 +48,10 @@ class Luxottica
             $params['stockId'] = 1;
         }
 
-        $this->prepareProductsToIdosell();
+        $products = $this->prepareProductsToIdosell();
 
-        dump($params);
-
-
-        //Idosell::createStockDocument($params);
+        $documentId = Idosell::createStockDocument($params);
+        Idosell::addProductsToStockDocument($documentId, $products, $params['type']);
     }
 
     private function getDocumentType(): string
@@ -330,12 +330,28 @@ class Luxottica
         return array_map(fn ($v): string => Str::ascii($v), $glassesWithLensesPhrasesLine2);
     }
 
-    private function prepareProductsToIdosell()
+    private function prepareProductsToIdosell(): array
     {
-        $out = [];
+        $products = [];
+
+        $matchingRules = MatchingRule::orderBy('priority', 'asc')->get()->toArray();
 
         foreach ($this->products as $product) {
             $productId = null;
+            $quantity = null;
+            $price = null;
+            $sizeId = 'uniw';
+
+            if (! empty($product['llo'])) {
+                $quantity = $product['llo'];
+            } elseif (! empty($product['ilo'])) {
+                $quantity = $product['ilo'];
+            }
+
+            if (! empty($product['kwota netto'])) {
+                $price = $product['kwota netto'] / $quantity;
+            }
+
             if (! empty($product['_glasses_set'])) {
                 foreach ($product['_glasses_set'] as $prod) {
                     if (self::checkPhraseOccurs($prod['opis'], 'soczewki korekcyjne OTD')) {
@@ -361,12 +377,34 @@ class Luxottica
             }
 
             if ($productId === null) {
+                if (! empty($product['kod ean'])) {
+                    $ean = preg_replace('/\s+/', '', $product['kod ean']);
+                    $productByEan = Idosell::getProductByEan($ean);
+                    if (! empty($productByEan->results) && count($productByEan->results) == 1) {
+                        $productId = $productByEan->results[0]->productId;
 
+                        $sizeId = $productByEan->results[0]->productSizes[0]->sizeId;
+                    }
+                }
             }
 
-            dump($productId);
+            if ($productId === null) {
+                $productId = $this->findProductByMatchingRules($product, $matchingRules);
+            }
+
+            if ($productId === null) {
+                throw new OcrParseException(__('Nie udało sie dopasować produktu.'));
+            }
+
+            $products[] = [
+                'product_id' => $productId,
+                'size' => $sizeId,
+                'quantity' => $quantity,
+                'price' => $price,
+            ];
         }
 
+        return $products;
     }
 
     private function checkPhraseOccurs(string $text, string $phrase): bool
@@ -380,4 +418,30 @@ class Luxottica
 
         return $match;
     }
+
+    private function findProductByMatchingRules(array $product, array $matchingRules): ?int
+    {
+        foreach ($matchingRules as $matchingRule) {
+            switch (MatchingRuleType::from($matchingRule['type'])) {
+                case MatchingRuleType::IN_MODEL:
+                    if (stripos($product['model'], $matchingRule['rule']) !== false) {
+                        return $matchingRule['product_id'];
+                    }
+                    break;
+
+                case MatchingRuleType::IN_DESCRIPTION:
+                    if (stripos($product['opis'], $matchingRule['rule']) !== false) {
+                        return $matchingRule['product_id'];
+                    }
+                    break;
+
+                case MatchingRuleType::UNIT_PRICE:
+                    // TODO
+                    break;
+            }
+        }
+
+        return null;
+    }
+
 }

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="container-fluid">
+    <div class="container">
         <div class="d-flex justify-content-between align-content-center mb-4">
             <h2 class="mb-0">{{ __('Szczegóły dokumentu') }}</h2>
             <div>
@@ -14,7 +14,7 @@
 
         <div class="border shadow p-3 mb-4">
             <div class="row align-items-center">
-                <div class="col lh-sm">
+                <div class="col-2 lh-sm">
                     <div>{{ __('Status') }}:</div>
                     {{ $document->status->label() }}
                 </div>
@@ -22,11 +22,11 @@
                     <div>{{ __('Temat wiadomości') }}:</div>
                     {{ $document->mail_subject }}
                 </div>
-                <div class="col lh-sm">
+                <div class="col-2 lh-sm">
                     <div>{{ __('Data pobrania') }}:</div>
                     {{ $document->created_at }}
                 </div>
-                <div class="col text-end">
+                <div class="col-2 text-end">
                     <a href="{{ route('document.pdf', $document) }}" class="btn btn-primary">
                         {{ __('Pobierz plik') }}
                         <i class="bi bi-download"></i>
@@ -34,7 +34,9 @@
                 </div>
             </div>
         </div>
+    </div>
 
+    <div class="container-fluid">
         <div class="border shadow p-3">
             <div class="row">
                 <div class="col-6">
